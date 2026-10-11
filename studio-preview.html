@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>新濠影匯 Studio City · 樣板預覽</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#060a1a;font-family:system-ui,-apple-system,Helvetica,Arial}
+#canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;inset:0;pointer-events:none}
+.bar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto}
+.btn{padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(14,18,36,.78);backdrop-filter:blur(10px);color:#e8ecff;font-size:13px;cursor:pointer}
+.btn.on{background:rgba(110,140,255,.95);color:#fff}
+.tag{position:absolute;top:12px;left:12px;background:rgba(10,14,28,.78);border:1px solid rgba(255,255,255,.14);color:#aeb8ff;padding:7px 10px;border-radius:999px;font-size:12px;backdrop-filter:blur(10px)}
+.hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(10,14,28,.78);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.9);padding:8px 12px;border-radius:999px;font-size:12px;backdrop-filter:blur(10px);white-space:nowrap}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="hud">
+  <div class="tag">新濠影匯 · Studio City · 8字摩天輪樣板</div>
+  <div class="bar">
+    <button class="btn on" id="bNight">夜景</button>
+    <button class="btn" id="bDay">日景</button>
+    <button class="btn" id="bSpin">暫停旋轉</button>
+  </div>
+  <div class="hint">拖動旋轉 · 滾輪縮放 · 雙指移動 · 8字輪 1圈/45秒</div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060a1a);
+scene.fog = new THREE.Fog(0x060a1a, 90, 320);
+
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 800);
+camera.position.set(42, 28, 52);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.target.set(0, 16, 0);
+controls.minDistance = 12;
+controls.maxDistance = 140;
+controls.maxPolarAngle = Math.PI*0.49;
+
+// lights
+scene.add(new THREE.HemisphereLight(0x9ab0ff, 0x0a1020, 0.9));
+const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+dir.position.set(40, 60, 30);
+scene.add(dir);
+const fill = new THREE.DirectionalLight(0xffd9a0, 0.35);
+fill.position.set(-30, 20, -20);
+scene.add(fill);
+
+// ground
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(260, 260), new THREE.MeshStandardMaterial({color:0x0b1020, roughness:0.72, metalness:0.08}));
+ground.rotation.x = -Math.PI/2;
+ground.position.y = 0;
+scene.add(ground);
+
+// reflective strip (Cotai road hint)
+const strip = new THREE.Mesh(new THREE.PlaneGeometry(200, 18), new THREE.MeshStandardMaterial({color:0x1a2338, roughness:0.22, metalness:0.35}));
+strip.rotation.x = -Math.PI/2;
+strip.position.set(0, 0.02, 22);
+scene.add(strip);
+// road markings
+for(let i=-90;i<=90;i+=12){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(4,0.5), new THREE.MeshStandardMaterial({color:0xffeaa0, emissive:0x332200, emissiveIntensity:0.6}));
+  m.rotation.x=-Math.PI/2; m.position.set(i,0.03,22);
+  scene.add(m);
+}
+
+// --- helpers ---
+function makeTower(x,z, h=42){
+  const g = new THREE.Group();
+  // podium
+  const podium = new THREE.Mesh(new THREE.BoxGeometry(18, 5, 18), new THREE.MeshStandardMaterial({color:0xe8e2d0, roughness:0.55, metalness:0.15}));
+  podium.position.set(x, 2.5, z);
+  g.add(podium);
+  // light band on podium
+  const band = new THREE.Mesh(new THREE.BoxGeometry(19, 0.6, 19), new THREE.MeshStandardMaterial({color:0xfff2a8, emissive:0xaa8822, emissiveIntensity:1.2}));
+  band.position.set(x, 4.2, z);
+  g.add(band);
+  // tower body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(10, h, 10), new THREE.MeshStandardMaterial({color:0xf5ecd0, roughness:0.45, metalness:0.12}));
+  body.position.set(x, 5 + h/2, z);
+  g.add(body);
+  // vertical fins
+  for(let i=0;i<5;i++){
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.35, h*0.88, 10.4), new THREE.MeshStandardMaterial({color:0xd9c9a0, roughness:0.6, metalness:0.22}));
+    fin.position.set(x + (i-2)*1.6, 5 + h/2, z);
+    g.add(fin);
+  }
+  // windows - emissive speckles
+  const winGeo = new THREE.PlaneGeometry(1.1,1.6);
+  for(let y=0;y<10;y++) for(let s of [-1,1]){
+    const w=new THREE.Mesh(winGeo, new THREE.MeshStandardMaterial({color:0xfff6cc, emissive:0xffc94a, emissiveIntensity:0.9, side:THREE.DoubleSide}));
+    w.position.set(x + s*5.01, 10 + y*3.2, z + (Math.random()-0.5)*6);
+    w.rotation.y = s>0?0:Math.PI;
+    // random off
+    if(Math.random()<0.18) w.material.emissiveIntensity=0.05;
+    g.add(w);
+  }
+  // crown steps
+  for(let k=0;k<3;k++){
+    const s = 8 - k*1.8;
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(s,s*0.28,s), new THREE.MeshStandardMaterial({color:0xffe9a8, roughness:0.4, metalness:0.18}));
+    crown.position.set(x, 5+h + k*1.2, z);
+    g.add(crown);
+  }
+  // top light
+  const topLight = new THREE.PointLight(0xffe08a, 22, 30);
+  topLight.position.set(x, 5+h+4, z);
+  g.add(topLight);
+  return g;
+}
+
+const towers = new THREE.Group();
+towers.add(makeTower(-11, -4, 42));
+towers.add(makeTower(11, -4, 40));
+scene.add(towers);
+
+// cross bridge between towers at wheel height
+const bridge = new THREE.Mesh(new THREE.BoxGeometry(22, 1.2, 3), new THREE.MeshStandardMaterial({color:0x2a3558, roughness:0.5, metalness:0.25}));
+bridge.position.set(0, 22, -4);
+scene.add(bridge);
+
+// --- Figure-8 wheel ---
+const wheelGroup = new THREE.Group();
+wheelGroup.position.set(0, 24, -4);
+scene.add(wheelGroup);
+
+// two interlocked rings (figure-8)
+const torusMat = new THREE.MeshStandardMaterial({color:0x9fb4ff, emissive:0x3a6bff, emissiveIntensity:1.4, roughness:0.35, metalness:0.35});
+const torusMat2 = new THREE.MeshStandardMaterial({color:0xffd27a, emissive:0xff9a1a, emissiveIntensity:1.1, roughness:0.35, metalness:0.35});
+
+const R = 11;
+const tube = 0.42;
+const ringA = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 22, 84), torusMat);
+ringA.position.y = 7.2;
+ringA.rotation.y = 0.18;
+ringA.rotation.x = 0.12;
+wheelGroup.add(ringA);
+
+const ringB = new THREE.Mesh(new THREE.TorusGeometry(R, tube, 22, 84), torusMat2);
+ringB.position.y = -7.2;
+ringB.rotation.y = -0.18;
+ringB.rotation.x = -0.12;
+wheelGroup.add(ringB);
+
+// inner glow rings
+const glowA = new THREE.Mesh(new THREE.TorusGeometry(R-0.35, 0.09, 12, 84), new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xffffff, emissiveIntensity:1.6}));
+glowA.position.copy(ringA.position); glowA.rotation.copy(ringA.rotation);
+wheelGroup.add(glowA);
+const glowB = glowA.clone(); glowB.position.copy(ringB.position); glowB.rotation.copy(ringB.rotation);
+wheelGroup.add(glowB);
+
+// cabins - attach to rings via groups that rotate
+const cabinGeo = new THREE.CapsuleGeometry(0.55, 0.9, 6, 12);
+const cabinMat = new THREE.MeshStandardMaterial({color:0xffffff, emissive:0x88aaff, emissiveIntensity:0.6, roughness:0.4, metalness:0.2});
+
+const cabinsA = [];
+const cabinsB = [];
+const nCabins = 14;
+for(let i=0;i<nCabins;i++){
+  const c = new THREE.Mesh(cabinGeo, cabinMat.clone());
+  c.scale.set(1,1,0.85);
+  cabinsA.push(c);
+  wheelGroup.add(c);
+}
+for(let i=0;i<nCabins;i++){
+  const c = new THREE.Mesh(cabinGeo, cabinMat.clone());
+  c.scale.set(1,1,0.85);
+  cabinsB.push(c);
+  wheelGroup.add(c);
+}
+
+// center hub lights
+const hub = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 16), new THREE.MeshStandardMaterial({color:0xffffff, emissive:0xffffff, emissiveIntensity:2}));
+hub.position.set(0,0,0);
+wheelGroup.add(hub);
+const hubLight = new THREE.PointLight(0xffffff, 18, 28);
+hubLight.position.set(0,0,0);
+wheelGroup.add(hubLight);
+
+// stars
+{
+  const sGeo = new THREE.BufferGeometry();
+  const n=900; const pos=new Float32Array(n*3);
+  for(let i=0;i<n;i++){ pos[i*3]=(Math.random()-0.5)*420; pos[i*3+1]= 22+Math.random()*90; pos[i*3+2]=(Math.random()-0.5)*420; }
+  sGeo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const sMat=new THREE.PointsMaterial({size:0.7, color:0x8aa0ff, transparent:true, opacity:0.85});
+  scene.add(new THREE.Points(sGeo,sMat));
+}
+
+// state
+let t=0;
+let spinning=true;
+let night=true;
+
+function updateCabins(dt){
+  if(!spinning) return;
+  // 1 revolution / 45s => 2pi/45 rad/s
+  const speed = (Math.PI*2)/45;
+  t += dt*speed;
+  // ringA
+  for(let i=0;i<nCabins;i++){
+    const ang = t + (i/nCabins)*Math.PI*2;
+    const x = Math.cos(ang)*R;
+    const y = Math.sin(ang)*R + 7.2;
+    // apply ring tilt offset roughly
+    cabinsA[i].position.set(
+      wheelGroup.position.x + x*Math.cos(0.18),
+      wheelGroup.position.y + y,
+      wheelGroup.position.z + x*Math.sin(0.18)*0.3
+    );
+    cabinsA[i].rotation.z = -ang; // keep upright
+    cabinsA[i].rotation.x = 0.12;
+    // twinkle
+    cabinsA[i].material.emissiveIntensity = 0.45 + Math.sin(t*3 + i)*0.18;
+  }
+  for(let i=0;i<nCabins;i++){
+    const ang = -t + (i/nCabins)*Math.PI*2;
+    const x = Math.cos(ang)*R;
+    const y = Math.sin(ang)*R - 7.2;
+    cabinsB[i].position.set(
+      wheelGroup.position.x + x*Math.cos(0.18),
+      wheelGroup.position.y + y,
+      wheelGroup.position.z + x*Math.sin(0.18)*0.3
+    );
+    cabinsB[i].rotation.z = -ang;
+    cabinsB[i].rotation.x = -0.12;
+    cabinsB[i].material.emissiveIntensity = 0.45 + Math.cos(t*3 + i*0.9)*0.18;
+  }
+  // subtle ring rotation
+  ringA.rotation.z = t*0.18;
+  ringB.rotation.z = -t*0.18;
+  glowA.rotation.z = ringA.rotation.z;
+  glowB.rotation.z = ringB.rotation.z;
+}
+
+// day/night
+function setNight(v){
+  night=v;
+  scene.background.set(v?0x060a1a:0xa8c6e8);
+  scene.fog.color.set(v?0x060a1a:0xa8c6e8);
+  renderer.toneMappingExposure = v?1.15:1.0;
+  ground.material.color.set(v?0x0b1020:0x9fb0a0);
+  strip.material.color.set(v?0x1a2338:0x2b2b2b);
+  document.getElementById('bNight').classList.toggle('on', v);
+  document.getElementById('bDay').classList.toggle('on', !v);
+}
+document.getElementById('bNight').onclick=()=>setNight(true);
+document.getElementById('bDay').onclick=()=>setNight(false);
+document.getElementById('bSpin').onclick=(e)=>{
+  spinning=!spinning;
+  e.target.textContent = spinning ? '暫停旋轉' : '繼續旋轉';
+  e.target.classList.toggle('on', !spinning);
+};
+
+addEventListener('resize', ()=>{
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+});
+
+let last=performance.now();
+function animate(now){
+  requestAnimationFrame(animate);
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  updateCabins(dt);
+  controls.update();
+  renderer.render(scene,camera);
+}
+animate(performance.now());
+</script>
+</body>
+</html>

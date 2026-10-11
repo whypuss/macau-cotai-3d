@@ -1,0 +1,8 @@
+{
+  "name": "macau-3d-city",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server -p 8080 -a 127.0.0.1 ."
+  }
+}

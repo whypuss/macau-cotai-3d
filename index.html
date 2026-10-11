@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>澳門路氹 3D 夜景 · Cotai Strip</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050814;font-family:system-ui,-apple-system,sans-serif}
+#canvas{display:block;width:100%;height:100%}
+#hud{position:fixed;inset:0;pointer-events:none}
+.bar{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto}
+.btn{padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(12,18,36,.72);backdrop-filter:blur(10px);color:#e8ecff;font-size:13px;letter-spacing:.02em;cursor:pointer}
+.btn.on{background:rgba(110,140,255,.95);color:#fff;border-color:rgba(255,255,255,.35)}
+.hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(10,14,28,.72);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.88);padding:8px 12px;border-radius:999px;font-size:12px;backdrop-filter:blur(10px);white-space:nowrap}
+.tag{position:absolute;top:10px;left:12px;background:rgba(10,14,28,.72);border:1px solid rgba(255,255,255,.14);color:#aeb8ff;padding:7px 10px;border-radius:999px;font-size:12px;backdrop-filter:blur(10px)}
+@media(max-width:700px){.hint{bottom:8px;font-size:11px;padding:6px 10px}.btn{padding:7px 11px;font-size:12px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="hud">
+  <div class="tag">澳門 · 路氹金光大道 · 夜景</div>
+  <div class="bar">
+    <button class="btn on" id="bOrbit">巡覽</button>
+    <button class="btn" id="bDrive">賽車</button>
+    <button class="btn" id="bWalk">步行</button>
+    <button class="btn" id="bDay">日/夜</button>
+  </div>
+  <div class="hint" id="hint">拖動旋轉 · 滾輪縮放 · 雙指移動 · 賽車：WASD/方向鍵 · 空白手煞 · 步行：WASD + Shift 跑</div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+</script>
+</body></html>
