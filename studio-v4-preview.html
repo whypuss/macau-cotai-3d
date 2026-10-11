@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>新濠影匯 Studio City · Blender 高模預覽</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#060a1a;font-family:system-ui,-apple-system,Helvetica,Arial}
+#canvas{width:100%;height:100%;display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+.tag{position:absolute;top:12px;left:12px;background:rgba(10,14,28,.78);border:1px solid rgba(255,255,255,.14);color:#aeb8ff;padding:7px 10px;border-radius:999px;font-size:12px;backdrop-filter:blur(10px)}
+.bar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap;justify-content:center}
+.btn{padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(14,18,36,.78);backdrop-filter:blur(10px);color:#e8ecff;font-size:13px;cursor:pointer}
+.btn.on{background:rgba(110,140,255,.95);color:#fff}
+.hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(10,14,28,.78);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.9);padding:8px 12px;border-radius:999px;font-size:12px;backdrop-filter:blur(10px);white-space:nowrap}
+#stats{position:absolute;top:12px;right:12px;background:rgba(10,14,28,.78);border:1px solid rgba(255,255,255,.14);color:#8ea0ff;padding:7px 10px;border-radius:10px;font-size:11px;line-height:1.5}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="hud">
+  <div class="tag">Studio City V4 · 內凹弧形+半圓廣場+切穿8字 · 待驗收</div>
+  <div class="bar">
+    <button class="btn on" id="bNight">夜景</button>
+    <button class="btn" id="bDay">日景</button>
+    <button class="btn" id="bWire">線框</button>
+    <button class="btn on" id="bSpin">旋轉開</button>
+  </div>
+  <div id="stats">載入中…</div>
+  <div class="hint">拖動旋轉 · 滾輪縮放 · 雙指移動 · 28艙 1圈/45秒 · 下一步：全 Cotai 8大地標</div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x060a1a);
+scene.fog = new THREE.Fog(0x060a1a, 80, 300);
+
+const camera = new THREE.PerspectiveCamera(48, innerWidth/innerHeight, 0.1, 800);
+camera.position.set(46, 30, 46);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.target.set(0, 16, -4);
+controls.minDistance = 10;
+controls.maxDistance = 180;
+
+scene.add(new THREE.HemisphereLight(0x9ab0ff, 0x080c18, 0.85));
+const sun = new THREE.DirectionalLight(0xfff6e0, 1.6);
+sun.position.set(50, 70, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near=1; sun.shadow.camera.far=200;
+sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffd9a0, 0.35);
+fill.position.set(-30, 20, -20);
+scene.add(fill);
+
+// starfield
+{
+  const g=new THREE.BufferGeometry();
+  const n=1100, p=new Float32Array(n*3);
+  for(let i=0;i<n;i++){ p[i*3]=(Math.random()-0.5)*500; p[i*3+1]=18+Math.random()*110; p[i*3+2]=(Math.random()-0.5)*500; }
+  g.setAttribute('position', new THREE.BufferAttribute(p,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({size:0.65, color:0x8aa0ff, transparent:true, opacity:0.9})));
+}
+
+let wheelA=null, wheelB=null;
+let cabinsA=[], cabinsB=[];
+let spinning=true;
+let night=true;
+
+const loader = new GLTFLoader();
+loader.load('./exports/studio-v4.glb', (gltf)=>{
+  const root = gltf.scene;
+  // enable shadows, fix materials
+  root.traverse(o=>{
+    if(o.isMesh){
+      o.castShadow = true;
+      o.receiveShadow = true;
+      if(o.material){
+        o.material.side = THREE.DoubleSide;
+      }
+      // identify rings by name
+      if(o.name.includes('Ring_A')) wheelA = o;
+      if(o.name.includes('Ring_B')) wheelB = o;
+      if(o.name.includes('Cabin_A')) cabinsA.push(o);
+      if(o.name.includes('Cabin_B')) cabinsB.push(o);
+    }
+  });
+  scene.add(root);
+  document.getElementById('stats').innerHTML = `GLB V4 8.9MB · 605物件 · 內凹弧形+半圓廣場+17艙<br>Meshes: ${cabinsA.length+cabinsB.length+2} cabins+rings<br>點拖動睇桁架細節`;
+  // store initial cabin positions for orbital animation
+  cabinsA.forEach(c=>{ c.userData.initPos = c.position.clone(); c.userData.initRot = c.rotation.clone(); });
+  cabinsB.forEach(c=>{ c.userData.initPos = c.position.clone(); c.userData.initRot = c.rotation.clone(); });
+}, (xhr)=>{
+  if(xhr.lengthComputable) document.getElementById('stats').textContent = `載入 ${(xhr.loaded/1024/1024).toFixed(1)}MB / ${(xhr.total/1024/1024).toFixed(1)}MB`;
+}, (err)=>{
+  document.getElementById('stats').textContent = '載入失敗: '+err.message;
+  console.error(err);
+});
+
+const center = new THREE.Vector3(0, 0.8, 28.2);
+const R = 12.0;
+let t=0;
+
+function animateCabins(dt){
+  if(!spinning || cabinsA.length===0) return;
+  const speed = (Math.PI*2)/45;
+  t += dt*speed;
+  const n = cabinsA.length;
+  for(let i=0;i<n;i++){
+    const ang = t + (i/n)*Math.PI*2;
+    const x = Math.cos(ang)*R*0.985;
+    const y = Math.sin(ang)*R;
+    const c = cabinsA[i];
+    c.position.set(center.x + x, center.y + y*0.12, center.z + 7.0 + y);
+    c.rotation.set(0, 0, -ang);
+  }
+  for(let i=0;i<cabinsB.length;i++){
+    const ang = -t + (i/cabinsB.length)*Math.PI*2;
+    const x = Math.cos(ang)*R*0.985;
+    const y = Math.sin(ang)*R;
+    const c = cabinsB[i];
+    c.position.set(center.x + x, center.y + y*0.12, center.z - 7.0 + y);
+    c.rotation.set(0, 0, -ang);
+  }
+  if(wheelA) wheelA.rotation.z = t*0.12;
+  if(wheelB) wheelB.rotation.z = -t*0.12;
+}
+
+function setNight(v){
+  night=v;
+  scene.background.set(v?0x060a1a:0xb8d0f0);
+  scene.fog.color.set(v?0x060a1a:0xb8d0f0);
+  renderer.toneMappingExposure = v?1.18:1.0;
+  document.getElementById('bNight').classList.toggle('on', v);
+  document.getElementById('bDay').classList.toggle('on', !v);
+}
+let wire=false;
+document.getElementById('bNight').onclick=()=>setNight(true);
+document.getElementById('bDay').onclick=()=>setNight(false);
+document.getElementById('bSpin').onclick=(e)=>{
+  spinning=!spinning;
+  e.target.textContent = spinning?'旋轉開':'旋轉關';
+  e.target.classList.toggle('on', spinning);
+};
+document.getElementById('bWire').onclick=(e)=>{
+  wire=!wire;
+  e.target.classList.toggle('on', wire);
+  scene.traverse(o=>{ if(o.isMesh && o.material) o.material.wireframe = wire; });
+};
+
+addEventListener('resize', ()=>{
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+});
+
+let last=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  animateCabins(dt);
+  controls.update();
+  renderer.render(scene,camera);
+}
+loop(performance.now());
+</script>
+</body>
+</html>
