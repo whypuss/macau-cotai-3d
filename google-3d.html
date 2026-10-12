@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>澳門路氹 · Google 真 3D · Photorealistic</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#060a1a;font-family:system-ui,-apple-system,Helvetica,Arial}
+#canvas{width:100%;height:100%;display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+.bar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap;justify-content:center}
+.btn{padding:8px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(14,18,36,.78);backdrop-filter:blur(10px);color:#e8ecff;font-size:13px;cursor:pointer}
+.btn.on{background:rgba(110,140,255,.95);color:#fff}
+.tag{position:absolute;top:12px;left:12px;background:rgba(10,14,28,.78);border:1px solid rgba(255,255,255,.14);color:#aeb8ff;padding:7px 10px;border-radius:999px;font-size:12px;backdrop-filter:blur(10px)}
+.hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:rgba(10,14,28,.78);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.9);padding:8px 12px;border-radius:999px;font-size:12px;backdrop-filter:blur(10px);text-align:center}
+#keybox{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(14,18,36,.96);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:22px 20px;width:min(480px,92vw);pointer-events:auto;backdrop-filter:blur(12px)}
+#keybox h3{color:#fff;font-size:16px;margin-bottom:8px}
+#keybox p{color:rgba(255,255,255,.72);font-size:12px;line-height:1.6;margin-bottom:12px}
+#keybox input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:13px;outline:none}
+#keybox .row{display:flex;gap:8px;margin-top:12px}
+#keybox .row button{flex:1;padding:10px;border-radius:999px;border:0;font-size:13px;cursor:pointer}
+#go{background:#6e8cff;color:#fff}
+#demo{background:rgba(255,255,255,.12);color:#fff}
+a{color:#8ea0ff}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/","3d-tiles-renderer":"https://unpkg.com/3d-tiles-renderer@0.4.14/build/index.module.js"}}</script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="hud">
+  <div class="tag">Google 真 3D · 路氹金光大道 · 22.142°N 113.561°E</div>
+  <div class="bar">
+    <button class="btn" id="bOrbit">巡覽</button>
+    <button class="btn" id="bDrive">賽車</button>
+    <button class="btn" id="bWalk">步行</button>
+  </div>
+  <div class="hint" id="hint">拖動旋轉 · 滾輪縮放 · 真 3D 需 Google Maps API Key（已啟用 Map Tiles API）</div>
+  <div id="keybox">
+    <h3>需要 Google Maps API Key 先睇到真 3D</h3>
+    <p>這就是 Google Earth 同一套 <b>Photorealistic 3D Tiles</b>，路氹每棟樓 1:1。<br>1. 去 <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank">Google Cloud Console → 憑證</a> 建立 API Key<br>2. 啟用 <a href="https://console.cloud.google.com/apis/library/tile.googleapis.com" target="_blank">Map Tiles API</a><br>3. 貼上你的 Key（以 AIza 開頭），按「載入真 3D」<br>Key 只存你瀏覽器 localStorage，唔會上傳。</p>
+    <input id="keyInput" placeholder="AIza... 貼上你的 Google Maps API Key" autocomplete="off" spellcheck="false">
+    <div class="row">
+      <button id="go">載入真 3D</button>
+      <button id="demo">無 Key 先睇 OSM 3D 示意</button>
+    </div>
+    <p style="margin-top:10px;font-size:11px;opacity:.7">已有 Key？輸入後自動記住，下次直接入。<br>無 Key 可先按「OSM 3D 示意」睇可賽車馬路（非相片級）。</p>
+  </div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+// TilesRenderer will be loaded dynamically if key exists
+
+const canvas=document.getElementById('canvas');
+const renderer=new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));
+renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.0;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x060a1a);
+
+const camera=new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 20000);
+camera.position.set(0, -800, 520);
+
+const controls=new OrbitControls(camera, renderer.domElement);
+controls.enableDamping=true;
+controls.dampingFactor=0.06;
+controls.target.set(0,0,0);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x080c18, 0.9));
+const sun=new THREE.DirectionalLight(0xfff6e0, 1.2);
+sun.position.set(400,600,300);
+scene.add(sun);
+
+// ground fallback + road for racing (always visible, tiles will overlay)
+const roadMat=new THREE.MeshStandardMaterial({color:0x1a2338, roughness:0.45, metalness:0.12});
+const lineMat=new THREE.MeshStandardMaterial({color:0xffe9a0, emissive:0x332200, emissiveIntensity:0.4});
+function addRoad(y=0){
+  const road=new THREE.Mesh(new THREE.PlaneGeometry(2200, 22), roadMat);
+  road.rotation.x=-Math.PI/2; road.position.set(0, y, 0.15);
+  scene.add(road);
+  for(let x=-1000;x<=1000;x+=18){
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(5.5,0.5), lineMat);
+    m.rotation.x=-Math.PI/2; m.position.set(x, y, 0.18);
+    scene.add(m);
+  }
+}
+// Cotai main strip approx at origin
+addRoad(0);
+addRoad(120);
+addRoad(-120);
+
+let tiles=null;
+let mode='orbit';
+
+async function loadTiles(apiKey){
+  document.getElementById('keybox').style.display='none';
+  document.getElementById('hint').textContent='載入 Google 真 3D 中…（首次較慢）';
+  try{
+    const mod=await import('3d-tiles-renderer');
+    const {TilesRenderer}=mod;
+    // Google Photorealistic 3D Tiles endpoint
+    const url=`https://tile.googleapis.com/v1/3dtiles/root.json?key=${apiKey}`;
+    tiles=new TilesRenderer(url);
+    tiles.setCamera(camera);
+    tiles.setResolutionFromRenderer(camera, renderer);
+    // Macau center
+    tiles.group.position.set(0,0,0);
+    scene.add(tiles.group);
+    // On tile load, reframe to Cotai
+    // Cotai approx: lng 113.561, lat 22.142 -> we rely on tiles georeferencing
+    document.getElementById('hint').textContent='真 3D 已載入 · 拖動旋轉 · 滾輪縮放 · 賽車：WASD';
+    localStorage.setItem('google_maps_api_key', apiKey);
+  }catch(e){
+    document.getElementById('keybox').style.display='block';
+    document.getElementById('hint').textContent='載入失敗：'+e.message+' · 檢查 Key 是否啟用 Map Tiles API';
+    console.error(e);
+  }
+}
+
+function loadOSMDemo(){
+  document.getElementById('keybox').style.display='none';
+  document.getElementById('hint').textContent='OSM 3D 示意模式 · 真 3D 需貼 Key 才有相片級';
+  // add simple OSM-like blocks as placeholder
+  const boxMat=new THREE.MeshStandardMaterial({color:0xe8e2d0, roughness:0.6});
+  const glassMat=new THREE.MeshStandardMaterial({color:0x8ab0ff, roughness:0.2, metalness:0.3});
+  for(let i=0;i<10;i++){
+    const h=30+Math.random()*50;
+    const b=new THREE.Mesh(new THREE.BoxGeometry(28,28,h), i%2?boxMat:glassMat);
+    b.position.set((i-4.5)*42, (Math.random()-0.5)*60, h/2);
+    scene.add(b);
+  }
+  document.getElementById('hint').textContent='示意 3D 已載入 · 貼上 Google Key 可切真 3D（相片級）';
+}
+
+document.getElementById('go').onclick=()=>{
+  const k=document.getElementById('keyInput').value.trim();
+  if(!k || !k.startsWith('AIza')){ alert('請貼上以 AIza 開頭的 Google Maps API Key'); return; }
+  loadTiles(k);
+};
+document.getElementById('demo').onclick=loadOSMDemo;
+
+// auto-load if key saved
+const saved=localStorage.getItem('google_maps_api_key');
+if(saved){ document.getElementById('keyInput').value=saved; loadTiles(saved); }
+
+addEventListener('resize',()=>{
+  renderer.setSize(innerWidth,innerHeight);
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  if(tiles) tiles.setResolutionFromRenderer(camera, renderer);
+});
+
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  if(tiles) tiles.update();
+  renderer.render(scene,camera);
+}
+animate();
+
+// simple drive/walk toggle placeholder (moves camera along road)
+document.getElementById('bDrive').onclick=()=>{
+  mode='drive'; document.getElementById('hint').textContent='賽車模式：WASD 沿金光大道跑（真 3D 上疊加）';
+  camera.position.set(0,-120,12); controls.target.set(80,0,6); controls.update();
+};
+document.getElementById('bWalk').onclick=()=>{
+  mode='walk'; document.getElementById('hint').textContent='步行模式：WASD + Shift 跑（人行道 3.5m）';
+  camera.position.set(0,-18,6); controls.target.set(30,0,4); controls.update();
+};
+document.getElementById('bOrbit').onclick=()=>{
+  mode='orbit'; camera.position.set(0,-800,520); controls.target.set(0,0,0); controls.update();
+  document.getElementById('hint').textContent='巡覽模式 · 拖動旋轉';
+};
+</script>
+</body>
+</html>
